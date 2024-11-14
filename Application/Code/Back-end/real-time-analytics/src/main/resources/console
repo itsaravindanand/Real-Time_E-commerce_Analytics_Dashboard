@@ -1,0 +1,13 @@
+show dbs;
+
+use real_time_analytics;
+
+show collections;
+
+db.products.find().pretty();
+
+db.orders.find().pretty();
+
+db.products.deleteMany({});
+
+db.products.deleteOne({ _id: ObjectId("6735e26a6f7e636757abd80e") })

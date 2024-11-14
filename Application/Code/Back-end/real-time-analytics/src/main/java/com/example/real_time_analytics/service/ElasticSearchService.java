@@ -33,6 +33,20 @@ public class ElasticSearchService {
         indexDocument("products-index", data, product.getId().toString());
     }
 
+    // Delete a Product document in Elasticsearch
+    public void deleteProductById(String productId) {
+        try {
+            elasticsearchClient.delete(d -> d
+                    .index("products-index")
+                    .id(productId)
+            );
+            System.out.println("Document with ID " + productId + " deleted from Elasticsearch.");
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Error deleting document from Elasticsearch: " + e.getMessage());
+        }
+    }
+
     // Index an Order document in Elasticsearch
     public void indexOrder(Order order) {
         Map<String, Object> data = new HashMap<>();

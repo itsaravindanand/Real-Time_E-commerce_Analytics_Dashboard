@@ -21,7 +21,10 @@ public class ProductService {
     @Autowired
     private KafkaProducerService kafkaProducerService;
 
+    @Autowired
+    private ElasticSearchService elasticSearchService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     public Product addProduct(Product product) {
         Product savedProduct = productRepository.save(product);
@@ -56,5 +59,6 @@ public class ProductService {
 
     public void deleteProduct(String id) {
         productRepository.deleteById(id);
+        elasticSearchService.deleteProductById(id);
     }
 }
