@@ -16,23 +16,51 @@ public class KafkaConsumerService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @KafkaListener(topics = "order-events", groupId = "real_time_analytics_group", containerFactory = "kafkaListenerContainerFactory")
-    public void consume(String message) {
+    // Listener for product-events
+    @KafkaListener(topics = "product-events", groupId = "real_time_analytics_group", containerFactory = "kafkaListenerContainerFactory")
+    public void consumeProductEvents(String message) {
         try {
             JsonNode rootNode = objectMapper.readTree(message);
-            String type = rootNode.get("type").asText();
+            String action = rootNode.get("action").asText();
+            Product product = objectMapper.treeToValue(rootNode.get("data"), Product.class);
 
-            if ("Order".equals(type)) {
-                Order order = objectMapper.treeToValue(rootNode.get("data"), Order.class);
-                elasticSearchService.indexOrder(order);
-            } else if ("Product".equals(type)) {
-                Product product = objectMapper.treeToValue(rootNode.get("data"), Product.class);
-                elasticSearchService.indexProduct(product);
-            } else {
-                elasticSearchService.indexMessage(message); // Handle unknown message types as generic
+            switch (action) {
+                case "create":
+                case "update":
+                    elasticSearchService.indexProduct(product);
+                    break;
+                case "delete":
+                    elasticSearchService.deleteProductById(product.getId().toString());
+                    break;
+                default:
+                    System.err.println("Unknown action for product: " + action);
             }
         } catch (Exception e) {
-            System.err.println("Failed to process message: " + e.getMessage());
+            System.err.println("Failed to process product message: " + e.getMessage());
+        }
+    }
+
+    // Listener for order-events
+    @KafkaListener(topics = "order-events", groupId = "real_time_analytics_group", containerFactory = "kafkaListenerContainerFactory")
+    public void consumeOrderEvents(String message) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(message);
+            String action = rootNode.get("action").asText();
+            Order order = objectMapper.treeToValue(rootNode.get("data"), Order.class);
+
+            switch (action) {
+                case "create":
+                case "update":
+                    elasticSearchService.indexOrder(order);
+                    break;
+                case "delete":
+                    elasticSearchService.deleteOrderById(order.getId().toString());
+                    break;
+                default:
+                    System.err.println("Unknown action for order: " + action);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to process order message: " + e.getMessage());
         }
     }
 }

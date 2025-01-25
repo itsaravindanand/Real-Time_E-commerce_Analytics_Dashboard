@@ -40,10 +40,10 @@ public class ElasticSearchService {
                     .index("products-index")
                     .id(productId)
             );
-            System.out.println("Document with ID " + productId + " deleted from Elasticsearch.");
+            System.out.println("Product document with ID " + productId + " deleted from Elasticsearch.");
         } catch (IOException e) {
             e.printStackTrace();
-            System.err.println("Error deleting document from Elasticsearch: " + e.getMessage());
+            System.err.println("Error deleting product document from Elasticsearch: " + e.getMessage());
         }
     }
 
@@ -55,6 +55,20 @@ public class ElasticSearchService {
         data.put("timestamp", System.currentTimeMillis());
 
         indexDocument("orders-index", data, order.getId().toString());
+    }
+
+    // Delete an Order document in Elasticsearch
+    public void deleteOrderById(String orderId) {
+        try {
+            elasticsearchClient.delete(d -> d
+                    .index("orders-index")
+                    .id(orderId)
+            );
+            System.out.println("Order document with ID " + orderId + " deleted from Elasticsearch.");
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Error deleting order document from Elasticsearch: " + e.getMessage());
+        }
     }
 
     // Helper method to index documents in Elasticsearch
@@ -71,14 +85,5 @@ public class ElasticSearchService {
             e.printStackTrace();
             System.err.println("Error indexing document: " + e.getMessage());
         }
-    }
-
-    // In ElasticSearchService
-    public void indexMessage(String message) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("eventData", message);
-        data.put("timestamp", System.currentTimeMillis());
-
-        indexDocument("generic-events-index", data, null); // Null ID will allow ES to auto-generate one
     }
 }

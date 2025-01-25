@@ -29,8 +29,17 @@ public class OrderService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    public Optional<Order> getOrderById(String id) {
+        return orderRepository.findById(id);
+    }
+
+    public List<Order> getAllOrders() {
+        return orderRepository.findAll();
+    }
+
     public Order createOrder(Order order) {
         double totalPrice = 0;
+
         for (OrderItem item : order.getItems()) {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
@@ -46,28 +55,56 @@ public class OrderService {
             product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
             productRepository.save(product);
         }
+
         order.setTotalPrice(totalPrice);
         Order savedOrder = orderRepository.save(order);
-        publishToKafka(savedOrder);
+
+        // Publish the "create" action to Kafka
+        publishToKafka(savedOrder, "create");
+
         return savedOrder;
     }
 
-    private void publishToKafka(Order order) {
+    public Order updateOrder(Order order) {
+        double totalPrice = 0;
+
+        for (OrderItem item : order.getItems()) {
+            Product product = productRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
+
+            item.setProductName(product.getName());
+            item.setPrice(product.getPrice() * item.getQuantity());
+            totalPrice += item.getPrice();
+        }
+
+        order.setTotalPrice(totalPrice);
+        Order updatedOrder = orderRepository.save(order);
+
+        // Publish the "update" action to Kafka
+        publishToKafka(updatedOrder, "update");
+
+        return updatedOrder;
+    }
+
+    public void deleteOrder(String id) {
+        Optional<Order> order = orderRepository.findById(id);
+
+        order.ifPresent(value -> {
+            orderRepository.deleteById(id);
+
+            // Publish the "delete" action to Kafka
+            publishToKafka(value, "delete");
+        });
+    }
+
+    private void publishToKafka(Order order, String action) {
         try {
             Map<String, Object> orderMessage = new HashMap<>();
-            orderMessage.put("type", "Order");
+            orderMessage.put("action", action);
             orderMessage.put("data", order);
-            kafkaProducerService.sendMessage(objectMapper.writeValueAsString(orderMessage));
+            kafkaProducerService.sendMessage("order-events", objectMapper.writeValueAsString(orderMessage));
         } catch (JsonProcessingException e) {
             System.err.println("Failed to convert order to JSON: " + e.getMessage());
         }
-    }
-
-    public Optional<Order> getOrderById(String id) {
-        return orderRepository.findById(id);
-    }
-
-    public List<Order> getAllOrders() {
-        return orderRepository.findAll();
     }
 }
